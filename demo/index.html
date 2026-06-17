@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evergreen Estate - GSAP Animation Demo</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@200;300;400;500&family=Cinzel:wght@400&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="hero">
+        <div class="bg-overlay"></div>
+        
+        <!-- Shape hình bát giác -->
+        <div class="large-octagon-frame">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="frame-svg">
+                <!-- Outer static line -->
+                <path class="frame-path-base" d="M 5,20 L 20,5 L 80,5 L 95,20 L 95,80 L 80,95 L 20,95 L 5,80 Z" fill="none" stroke="rgba(212,175,55,0.3)" vector-effect="non-scaling-stroke" stroke-width="1.5"/>
+                <!-- Moving bright glow segment -->
+                <path class="frame-path-glow" d="M 5,20 L 20,5 L 80,5 L 95,20 L 95,80 L 80,95 L 20,95 L 5,80 Z" fill="none" stroke="#ffe58f" vector-effect="non-scaling-stroke" stroke-width="2"/>
+            </svg>
+        </div>
+
+        <!-- Line gradient ngang (agbg glow style) -->
+        <div class="horizontal-gradient-line"></div>
+
+        <!-- Header -->
+        <header class="header">
+            <div class="menu"><span>•</span> MENU</div>
+            <div class="logo-wrapper">
+                <div class="octagon">
+                    <svg viewBox="0 0 100 100" class="octa-shape">
+                        <polygon points="30,0 70,0 100,30 100,70 70,100 30,100 0,70 0,30" fill="none" stroke="#d4af37" stroke-width="1.5"/>
+                    </svg>
+                    <div class="logo-inner">EE</div>
+                </div>
+                <div class="logo-text">Evergreen Estate</div>
+                <div class="logo-subtext">LẠNG SƠN - VIỆT NAM</div>
+            </div>
+            <div class="contact">
+                <button class="btn">LIÊN HỆ</button>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <div class="content">
+            <div class="heading-col">
+                <h1 class="heading-1">
+                    <div class="mask-container"><div class="heading-text line1">Đẳng Cấp</div></div>
+                    <div class="mask-container"><div class="heading-text line2">Sống Danh Giá</div></div>
+                </h1>
+            </div>
+            <div class="desc-col">
+                <div class="location">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    <span>LẠNG SƠN, VIỆT NAM</span>
+                </div>
+                <div class="description">
+                    <div class="mask-container"><p class="desc-text">Khơi dậy cảm thức từ thiên nhiên</p></div>
+                    <div class="mask-container"><p class="desc-text">nguyên bản, Evergreen Estate định hình</p></div>
+                    <div class="mask-container"><p class="desc-text">một chuẩn sống độc bản tại Lạng Sơn</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Snap Point là gì?</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #08090f; color: white; overflow: hidden; display: flex; height: 100vh; }
+
+  /* ========== 2 CỘT ========== */
+  .col { flex: 1; height: 100vh; position: relative; }
+  .divider { width: 1px; background: rgba(255,255,255,0.07); flex-shrink: 0; }
+
+  /* ========== HEADER ========== */
+  .col-header {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 99;
+    padding: 16px 24px;
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .col-header h2 { font-size: 14px; font-weight: 700; }
+  .col-header p  { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+  .tag { font-size: 10px; padding: 4px 12px; border-radius: 999px; font-weight: 600; letter-spacing: 0.5px; }
+
+  /* ========== CỘT TRÁI: THANH TRƯỢT ========== */
+  #col-left { background: #09090f; }
+  #col-left .col-header { background: rgba(0,0,0,0.6); }
+  #col-left .tag { background: rgba(99,102,241,0.25); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.35); }
+
+  /* Thanh scroll dọc */
+  .track-wrap {
+    position: absolute;
+    top: 70px; bottom: 60px;
+    left: 50%; transform: translateX(-50%);
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .track {
+    width: 6px;
+    flex: 1;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    position: relative;
+    cursor: pointer;
+  }
+
+  /* Thumb (con trượt) */
+  .thumb {
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    width: 28px; height: 28px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(255,255,255,0.15), 0 4px 20px rgba(0,0,0,0.5);
+    cursor: grab;
+    transition: box-shadow 0.2s;
+    z-index: 10;
+    top: 0;
+  }
+  .thumb:active { cursor: grabbing; box-shadow: 0 0 0 8px rgba(255,255,255,0.1), 0 8px 30px rgba(0,0,0,0.6); }
+
+  /* Snap points trên track */
+  .snap-point {
+    position: absolute;
+    left: 50%; transform: translate(-50%, -50%);
+    display: flex; align-items: center; gap: 12px;
+    pointer-events: none;
+  }
+  .snap-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid;
+    background: #08090f;
+    transition: all 0.3s;
+    flex-shrink: 0;
+  }
+  .snap-line {
+    position: absolute;
+    left: 50%;
+    width: 200px;
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    transform: translateX(14px);
+  }
+  .snap-label {
+    position: absolute;
+    left: calc(50% + 22px);
+    white-space: nowrap;
+    font-size: 12px;
+    color: rgba(255,255,255,0.35);
+    transition: color 0.3s;
+    font-weight: 500;
+  }
+  .snap-label-left {
+    position: absolute;
+    right: calc(50% + 22px);
+    white-space: nowrap;
+    font-size: 10px;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* Active snap point */
+  .snap-point.active .snap-dot {
+    background: currentColor;
+    box-shadow: 0 0 16px currentColor;
+    transform: scale(1.3);
+  }
+  .snap-point.active .snap-label { color: white; font-weight: 700; }
+
+  /* Zone của từng snap (vùng bị hút) */
+  .snap-zone {
+    position: absolute;
+    left: 50%;
+    width: 3px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 2px;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  /* Thumb position indicator */
+  .thumb-pos-label {
+    position: absolute;
+    right: -80px; top: 50%; transform: translateY(-50%);
+    font-size: 11px; color: rgba(255,255,255,0.5);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* Magnet animation khi snap */
+  @keyframes snapPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+    100% { box-shadow: 0 0 0 20px rgba(255,255,255,0); }
+  }
+  .thumb.snapping { animation: snapPulse 0.4s ease-out; }
+
+  /* ========== LABEL GIỮA: VÙNG NÀM CHÂM ========== */
+  .magnet-label {
+    position: absolute;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.15);
+    left: calc(50% + 20px);
+    pointer-events: none;
+  }
+
+  /* ========== CỘT PHẢI: GIẢI THÍCH ========== */
+  #col-right { background: #080c12; overflow-y: auto; }
+  #col-right::-webkit-scrollbar { width: 3px; }
+  #col-right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+  #col-right .col-header { background: rgba(8,12,18,0.9); position: sticky; }
+  #col-right .tag { background: rgba(16,185,129,0.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+
+  .explain-body { padding: 80px 28px 40px; display: flex; flex-direction: column; gap: 20px; }
+
+  .def-box {
+    background: rgba(99,102,241,0.07);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 16px; padding: 22px;
+  }
+  .def-box .word { font-size: 28px; font-weight: 900; color: #a5b4fc; margin-bottom: 8px; }
+  .def-box .def  { font-size: 14px; color: rgba(255,255,255,0.6); line-height: 1.7; }
+
+  .example-row {
+    display: flex; gap: 12px; align-items: stretch;
+  }
+  .example-card {
+    flex: 1; border-radius: 14px; padding: 18px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+  .example-card .icon { font-size: 22px; margin-bottom: 10px; }
+  .example-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .example-card p  { font-size: 12px; color: rgba(255,255,255,0.4); line-height: 1.6; }
+
+  .snap-list { display: flex; flex-direction: column; gap: 10px; }
+  .snap-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .snap-item-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+  .snap-item h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .snap-item p  { font-size: 12px; color: rgba(255,255,255,0.4); line-height: 1.6; }
+
+  .code-box {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px; padding: 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px; line-height: 1.9;
+    color: rgba(255,255,255,0.6);
+  }
+  .ck { color: #fb923c; } .cv { color: #4ade80; } .cc { color: rgba(255,255,255,0.25); }
+
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: -8px; }
+
+  /* ========== STATUS ========== */
+  .status-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 999;
+    background: rgba(0,0,0,0.9); backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 10px 28px; display: flex; gap: 28px; align-items: center;
+    font-size: 12px;
+  }
+  .si { display: flex; align-items: center; gap: 8px; }
+  .si-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .si-l { color: rgba(255,255,255,0.3); }
+  .si-v { color: white; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .si-snap { color: #a5b4fc; font-weight: 700; display: none; }
+</style>
+</head>
+<body>
+
+<!-- ========== CỘT TRÁI ========== -->
+<div class="col" id="col-left">
+  <div class="col-header">
+    <div>
+      <h2>Kéo con trượt ↕</h2>
+      <p>Thả tay → xem nó tự nhảy về snap point</p>
+    </div>
+    <div class="tag">INTERACTIVE</div>
+  </div>
+
+  <div class="track-wrap">
+    <div class="track" id="track">
+
+      <!-- Snap zones (vùng bị hút) - sẽ được tạo bởi JS -->
+
+      <!-- Thumb -->
+      <div class="thumb" id="thumb">
+        <div class="thumb-pos-label" id="thumb-label">0%</div>
+      </div>
+
+      <!-- Snap points - sẽ được tạo bởi JS -->
+    </div>
+  </div>
+</div>
+
+<!-- Divider -->
+<div class="divider"></div>
+
+<!-- ========== CỘT PHẢI ========== -->
+<div class="col" id="col-right">
+  <div class="col-header">
+    <div>
+      <h2>Snap Point là gì?</h2>
+      <p>Khái niệm cốt lõi của snap scroll</p>
+    </div>
+    <div class="tag">GIẢI THÍCH</div>
+  </div>
+
+  <div class="explain-body">
+
+    <!-- Định nghĩa -->
+    <div class="def-box">
+      <div class="word">Snap Point</div>
+      <div class="def">
+        Là một <strong style="color:white">vị trí cố định</strong> trên thanh scroll.<br>
+        Khi bạn <strong style="color:white">dừng scroll gần đó</strong>, trình duyệt sẽ <strong style="color:white">tự động "hút"</strong> về đúng điểm đó.<br><br>
+        Giống như <strong style="color:#a5b4fc">nam châm</strong> — thả tay là dính vào.
+      </div>
+    </div>
+
+    <!-- Ví dụ thực tế -->
+    <div class="section-title">Ví dụ thực tế</div>
+    <div class="example-row">
+      <div class="example-card">
+        <div class="icon">📱</div>
+        <h4>App điện thoại</h4>
+        <p>Vuốt qua stories — mỗi story là 1 snap point. Thả tay → story hiện ra đầy đủ.</p>
+      </div>
+      <div class="example-card">
+        <div class="icon">🖼</div>
+        <h4>Carousel ảnh</h4>
+        <p>Kéo sang ảnh tiếp theo — thả ra → tự snap vào đúng ảnh, không dừng giữa 2 ảnh.</p>
+      </div>
+      <div class="example-card">
+        <div class="icon">🌐</div>
+        <h4>Website fullscreen</h4>
+        <p>Scroll xuống section tiếp theo — tự nhảy vào đầu section, không bị cắt nửa chừng.</p>
+      </div>
+    </div>
+
+    <!-- Snap points trong demo -->
+    <div class="section-title">Snap points trong demo bên trái</div>
+    <div class="snap-list" id="snap-list">
+      <!-- sẽ được tạo bởi JS -->
+    </div>
+
+    <!-- CSS code -->
+    <div class="section-title">Code CSS</div>
+    <div class="code-box">
+      <span class="cc">/* 1. Bật snap trên container */</span><br>
+      .container {<br>
+      &nbsp;&nbsp;<span class="ck">scroll-snap-type</span>: <span class="cv">y mandatory</span>;<br>
+      &nbsp;&nbsp;<span class="cc">/* mandatory = bắt buộc snap */</span><br>
+      }<br><br>
+      <span class="cc">/* 2. Đặt snap point tại mỗi section */</span><br>
+      .section {<br>
+      &nbsp;&nbsp;<span class="ck">scroll-snap-align</span>: <span class="cv">start</span>;<br>
+      &nbsp;&nbsp;<span class="cc">/* start = snap vào đầu section */</span><br>
+      }
+    </div>
+
+    <!-- Proximity vs Mandatory -->
+    <div class="section-title">2 loại snap</div>
+    <div class="snap-list">
+      <div class="snap-item">
+        <div class="snap-item-dot" style="background:#6366f1"></div>
+        <div>
+          <h4>mandatory <span style="color:rgba(255,255,255,0.3); font-weight:400">— bắt buộc</span></h4>
+          <p>Dừng ở đâu cũng bị hút về snap point gần nhất. Không thoát được.</p>
+        </div>
+      </div>
+      <div class="snap-item">
+        <div class="snap-item-dot" style="background:#10b981"></div>
+        <div>
+          <h4>proximity <span style="color:rgba(255,255,255,0.3); font-weight:400">— gần mới hút</span></h4>
+          <p>Chỉ hút khi bạn dừng <em>gần</em> snap point. Dừng xa thì không bị kéo.</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="height: 20px"></div>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div class="status-bar">
+  <div class="si">
+    <div class="si-dot" style="background:#6366f1"></div>
+    <span class="si-l">Vị trí thumb:</span>
+    <span class="si-v" id="st-pos">0%</span>
+  </div>
+  <div class="si">
+    <div class="si-dot" style="background:#10b981"></div>
+    <span class="si-l">Snap point gần nhất:</span>
+    <span class="si-v" id="st-nearest">—</span>
+  </div>
+  <div class="si">
+    <div class="si-dot" style="background:#fb923c"></div>
+    <span class="si-l">Khoảng cách:</span>
+    <span class="si-v" id="st-dist">—</span>
+  </div>
+  <div class="si-snap" id="st-snap">⚡ SNAPPING!</div>
+</div>
+
+<script>
+/* =============================================
+   CÁC SNAP POINTS (% trên track)
+============================================= */
+const SNAP_POINTS = [
+  { pct: 0,    label: 'Section 1 — đầu trang',     color: '#6366f1' },
+  { pct: 0.25, label: 'Step 2 — giữa section 1',   color: '#8b5cf6' },
+  { pct: 0.5,  label: 'Section 2 — sau reveal',    color: '#ec4899' },
+  { pct: 0.75, label: 'Step 2 — giữa section 2',   color: '#f97316' },
+  { pct: 1.0,  label: 'Section 3 — cuối trang',    color: '#10b981' },
+];
+
+const SNAP_ZONE = 0.08; // bán kính hút (8% chiều dài track)
+
+/* =============================================
+   BUILD UI
+============================================= */
+const track = document.getElementById('track');
+const thumb = document.getElementById('thumb');
+const snapList = document.getElementById('snap-list');
+
+// Tạo snap points và zones trên track
+SNAP_POINTS.forEach((sp, i) => {
+  // Dot + label trên track
+  const el = document.createElement('div');
+  el.className = 'snap-point';
+  el.id = `sp-${i}`;
+  el.style.top = (sp.pct * 100) + '%';
+  el.innerHTML = `
+    <div class="snap-line"></div>
+    <div class="snap-dot" style="border-color:${sp.color}; color:${sp.color}"></div>
+    <div class="snap-label">${sp.label}</div>
+    <div class="snap-label-left">${Math.round(sp.pct * 100)}%</div>
+  `;
+  track.appendChild(el);
+
+  // Zone (vùng bị hút) — hiển thị quanh snap point
+  const zone = document.createElement('div');
+  zone.className = 'snap-zone';
+  const zoneSize = SNAP_ZONE * 2 * 100;
+  zone.style.top = Math.max(0, (sp.pct - SNAP_ZONE) * 100) + '%';
+  zone.style.height = zoneSize + '%';
+  zone.style.background = sp.color.replace(')', ',0.04)').replace('rgb', 'rgba');
+  track.appendChild(zone);
+
+  // Card trong list bên phải
+  const card = document.createElement('div');
+  card.className = 'snap-item';
+  card.id = `spl-${i}`;
+  card.innerHTML = `
+    <div class="snap-item-dot" style="background:${sp.color}"></div>
+    <div>
+      <h4 style="color:${sp.color}">${Math.round(sp.pct * 100)}% — Snap Point ${i + 1}</h4>
+      <p>${sp.label}</p>
+    </div>
+  `;
+  snapList.appendChild(card);
+});
+
+/* =============================================
+   DRAG LOGIC
+============================================= */
+let isDragging = false;
+let thumbPct = 0; // 0 → 1
+
+function setThumb(pct, animate = false) {
+  thumbPct = Math.max(0, Math.min(1, pct));
+  const trackH = track.getBoundingClientRect().height - thumb.offsetHeight;
+  thumb.style.top = (thumbPct * trackH) + 'px';
+  if (animate) thumb.style.transition = 'top 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+  else thumb.style.transition = 'none';
+
+  document.getElementById('thumb-label').textContent = Math.round(thumbPct * 100) + '%';
+  document.getElementById('st-pos').textContent = Math.round(thumbPct * 100) + '%';
+
+  updateNearestSnap();
+  updateActivePoints();
+}
+
+function updateNearestSnap() {
+  let nearest = null;
+  let minDist = Infinity;
+  SNAP_POINTS.forEach(sp => {
+    const d = Math.abs(sp.pct - thumbPct);
+    if (d < minDist) { minDist = d; nearest = sp; }
+  });
+  document.getElementById('st-nearest').textContent = nearest.label;
+  const distPct = Math.round(minDist * 100);
+  document.getElementById('st-dist').textContent = distPct + '%';
+
+  // Đổi màu distance theo khoảng cách
+  const distEl = document.getElementById('st-dist');
+  if (distPct === 0) distEl.style.color = '#4ade80';
+  else if (distPct <= 8) distEl.style.color = '#fb923c';
+  else distEl.style.color = 'white';
+}
+
+function updateActivePoints() {
+  SNAP_POINTS.forEach((sp, i) => {
+    const el = document.getElementById(`sp-${i}`);
+    const card = document.getElementById(`spl-${i}`);
+    const dist = Math.abs(sp.pct - thumbPct);
+    const isActive = dist < 0.001;
+    const isNear = dist < SNAP_ZONE;
+
+    el.classList.toggle('active', isActive);
+    if (card) card.style.background = isActive
+      ? `rgba(${hexToRgb(sp.color)}, 0.12)`
+      : isNear ? `rgba(${hexToRgb(sp.color)}, 0.06)` : '';
+    if (card) card.style.borderColor = isActive
+      ? sp.color.replace(')', ', 0.4)').replace('rgb', 'rgba')
+      : isNear ? sp.color.replace(')', ', 0.15)').replace('rgb', 'rgba') : '';
+  });
+}
+
+function doSnap() {
+  let nearest = null;
+  let minDist = Infinity;
+  SNAP_POINTS.forEach(sp => {
+    const d = Math.abs(sp.pct - thumbPct);
+    if (d < minDist) { minDist = d; nearest = sp; }
+  });
+
+  // Chỉ snap nếu trong zone
+  if (nearest && minDist <= SNAP_ZONE) {
+    const snapLabel = document.getElementById('st-snap');
+    snapLabel.style.display = 'flex';
+    setTimeout(() => snapLabel.style.display = 'none', 600);
+
+    thumb.classList.add('snapping');
+    setTimeout(() => thumb.classList.remove('snapping'), 400);
+
+    setThumb(nearest.pct, true);
+  }
+}
+
+/* =============================================
+   MOUSE / TOUCH EVENTS
+============================================= */
+thumb.addEventListener('mousedown', e => {
+  isDragging = true;
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const rect = track.getBoundingClientRect();
+  const trackH = rect.height - thumb.offsetHeight;
+  const rawPct = (e.clientY - rect.top - thumb.offsetHeight / 2) / trackH;
+  setThumb(rawPct);
+});
+
+document.addEventListener('mouseup', () => {
+  if (!isDragging) return;
+  isDragging = false;
+  doSnap();
+});
+
+// Click trên track
+track.addEventListener('click', e => {
+  if (e.target === thumb) return;
+  const rect = track.getBoundingClientRect();
+  const trackH = rect.height - thumb.offsetHeight;
+  const pct = (e.clientY - rect.top - thumb.offsetHeight / 2) / trackH;
+  setThumb(pct);
+  setTimeout(doSnap, 10);
+});
+
+// Helper
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `${r},${g},${b}`;
+}
+
+// Init
+setThumb(0, false);
+</script>
+</body>
+</html>
