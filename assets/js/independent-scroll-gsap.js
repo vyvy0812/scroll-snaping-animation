@@ -23,6 +23,9 @@
  * - data-magnetic-hover           : cursor pull via translate3d + lerp (vanilla rAF, no ScrollTrigger). Optional: data-magnetic-strength (0–1, default 0.35) | data-magnetic-lerp (default 0.12). Do not combine with GSAP transform on the same node.
  *   Demo root [data-magnetic-hover-root] + input[data-magnetic-strength-slider] (0–100) adjusts strength for child [data-magnetic-hover] nodes.
  * - data-scroll-parallax          : vertical parallax (vanilla scroll). Optional: data-scroll-parallax-scroll (selector, default window)
+ * - data-scroll-octagon-reveal    : pin container; .reveal-wrapper grows small octagon → fullscreen (scrub). Also matches .animation-container.
+ *   Optional: data-scroll-octagon-reveal-target (default .reveal-wrapper) | data-scroll-octagon-reveal-length (vh mult, default 2)
+ *   Optional: data-scroll-octagon-reveal-scrub (default 1) | data-scroll-octagon-reveal-peek (px, default 150)
  */
 (function () {
 	'use strict';
@@ -235,15 +238,7 @@
 			blurPx = 80;
 		}
 
-		gsap.set(imageEl, {
-			filter: 'blur(0px)',
-			scale: 0.8,
-			opacity: 1,
-			transformOrigin: '50% 50%',
-			willChange: 'filter, transform, opacity',
-			force3D: true,
-			backfaceVisibility: 'hidden',
-		});
+		var showImage = imageEl.getAttribute('data-scroll-blur-show-image') !== null;
 
 		let tl = gsap.timeline({
 			scrollTrigger: mergeScrollTriggerConfig(imageEl, {
@@ -328,16 +323,19 @@
 		// Single opacity tween — same pattern as blur (one continuous fromTo, linear
 		// ease, scrub-driven). The earlier two-phase dim-then-fade had an artificial
 		// plateau at 0.8 that felt disconnected from scrub.
-		tl.fromTo(
-			imageEl,
-			{ opacity: 1 },
-			{
-				opacity: 0,
-				ease: 'none',
-				duration: step.fade,
-			},
-			'+=' + step.holdAtPeak
-		);
+		if (!showImage) {
+			console.log('showImage', showImage);
+			tl.fromTo(
+				imageEl,
+				{ opacity: 1 },
+				{
+					opacity: 0,
+					ease: 'none',
+					duration: step.fade,
+				},
+				'+=' + step.holdAtPeak
+			);
+		}
 	}
 
 	/**
@@ -1404,6 +1402,80 @@
 		ScrollTrigger.refresh();
 	}
 
+	/**
+	 * Octagon reveal — pin container, scrub width/height of .reveal-wrapper.
+	 * @param {HTMLElement} containerEl
+	 */
+	function initOctagonReveal(containerEl) {
+		if (!containerEl || containerEl.getAttribute('data-scroll-octagon-reveal-ready') === '1') {
+			return;
+		}
+
+		var targetSel = (
+			containerEl.getAttribute('data-scroll-octagon-reveal-target') || '.reveal-wrapper'
+		).trim();
+		var revealEl = containerEl.querySelector(targetSel);
+		if (!revealEl) {
+			return;
+		}
+
+		containerEl.setAttribute('data-scroll-octagon-reveal-ready', '1');
+
+		var lengthVh = parseFloat(containerEl.getAttribute('data-scroll-octagon-reveal-length') || '2');
+		if (isNaN(lengthVh) || lengthVh <= 0) {
+			lengthVh = 2;
+		}
+		if (lengthVh > 6) {
+			lengthVh = 6;
+		}
+
+		var scrub = parseScrollScrubAttr(containerEl, 'data-scroll-octagon-reveal-scrub', 1);
+
+		var peekSize = parseFloat(containerEl.getAttribute('data-scroll-octagon-reveal-peek') || '150');
+		if (isNaN(peekSize) || peekSize <= 0) {
+			peekSize = 150;
+		}
+
+		gsap.set(revealEl, {
+			width: 0,
+			height: 0,
+			willChange: 'width, height',
+		});
+
+		var revealTl = gsap.timeline({
+			scrollTrigger: mergeScrollTriggerConfig(containerEl, {
+				trigger: containerEl,
+				start: 'top top',
+				end: function () {
+					return '+=' + Math.round(window.innerHeight * lengthVh);
+				},
+				pin: true,
+				scrub: scrub,
+				invalidateOnRefresh: true,
+				onLeave: function () {
+					gsap.set(revealEl, { clearProps: 'willChange' });
+				},
+				onEnterBack: function () {
+					gsap.set(revealEl, { willChange: 'width, height' });
+				},
+			}),
+		});
+
+		revealTl.to(revealEl, {
+			width: peekSize,
+			height: peekSize,
+			duration: 1,
+			ease: 'power2.out',
+		});
+
+		revealTl.to(revealEl, {
+			width: '350vmax',
+			height: '350vmax',
+			duration: 3,
+			ease: 'power2.inOut',
+		});
+	}
+
 	function initAll() {
 		// Skipped on mobile (coarse pointer): heavy CSS filter blur + background-clip
 		// gradient text are GPU-expensive and don't read well on small screens.
@@ -1423,6 +1495,9 @@
 		document.querySelectorAll('[data-scroll-text-gradient]').forEach(initScrollGradientText);
 		document.querySelectorAll('[data-scroll-tags-marquee]').forEach(initTagsHorizontalMarquee);
 		document.querySelectorAll('[data-scroll-horizontal]').forEach(initHorizontalScroll);
+		document.querySelectorAll('[data-scroll-octagon-reveal], .animation-container').forEach(
+			initOctagonReveal
+		);
 		document.querySelectorAll('[data-magnetic-hover-root]').forEach(initMagneticHoverDemoRoot);
 		document.querySelectorAll('[data-magnetic-hover]').forEach(function (el) {
 			if (!el.closest('[data-magnetic-hover-root]')) {
