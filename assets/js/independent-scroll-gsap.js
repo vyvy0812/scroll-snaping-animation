@@ -422,7 +422,7 @@
 					return '+=' + Math.round(window.innerHeight * frameLengthVh);
 				},
 				pin: true,
-				// anticipatePin: 1,
+				anticipatePin: 1,
 				invalidateOnRefresh: true,
 				scrub: frameScrub,
 
@@ -1450,6 +1450,7 @@
 					return '+=' + Math.round(window.innerHeight * lengthVh);
 				},
 				pin: true,
+				anticipatePin: 1,
 				scrub: scrub,
 				invalidateOnRefresh: true,
 				onLeave: function () {
